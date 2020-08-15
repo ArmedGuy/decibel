@@ -51,8 +51,12 @@ class Task():
             self.vars[key] = f"{{{{ {runnable.variable_name} }}}}"
         return self
 
-    def when(self, runnable):
-        self.settings["when"] = str(runnable)
+    def when(self, condition):
+        if isinstance(condition, (list, tuple)):
+            condition = [str(cond) for cond in condition]
+        else:
+            condition = str(condition)
+        self.settings["when"] = condition
         return self
 
     def run_once(self):
@@ -82,6 +86,18 @@ class Task():
     @property
     def var(self):
         return self.variable_name
+
+    @property
+    def is_failed(self):
+        return f"{self.var} is failed"
+
+    @property
+    def is_success(self):
+        return f"{self.var} is success"
+
+    @property
+    def is_skipped(self):
+        return f"{self.var} is skipped"
 
     def __getattr__(self, name):
         return TaskData(self.var + "." + name)

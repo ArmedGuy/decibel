@@ -3,3 +3,4 @@ common/
 dist/
 pydecibel.egg-info/
 build/
+.vscode/

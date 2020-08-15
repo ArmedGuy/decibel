@@ -60,11 +60,6 @@ class Runnable():
         for i, t in enumerate(self.tasks, start=1):
             tyaml = t._yaml()
             tyaml["name"] = f"[{self.name}]::step{i} - {t.action}"
-            if self.vars:
-                tyaml["vars"] = dict(
-                    self.vars, 
-                    **(tyaml.get("vars", {}))
-                )
             tyaml = dict(self.task_settings, **tyaml)
             out.append(tyaml)
         return out
@@ -202,13 +197,16 @@ class HostContext():
         }, **self.settings)
         tasks = []
         settings = {}
+        runnable_vars = {}
         for runnable in runnables:
             tasks.extend(runnable._yaml())
             settings = dict(settings, **runnable.hctx_settings)
+            runnable_vars = dict(runnable_vars, **runnable.vars)
         if self.vars:
             out["vars"] = {
                 "decibel_vars": self.vars
             }
+        out["vars"] = dict(out.get("vars", {}), **runnable_vars)
         out["tasks"] = tasks
         out = dict(settings, **out)
         return out

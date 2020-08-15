@@ -65,6 +65,7 @@ Decibel will be default warn you of such cases, and provide helper functions to 
 ```python
 from decibel.ansible import command, stat
 from decibel.dsl import wants
+
 class Database(Runbook):
     def run_import(self):
         wants(
@@ -82,8 +83,8 @@ task tagging. It also provides a helpful syntax for many common operations such 
 ```python
 from decibel.ansible import command, apt
 from decibel.flow import rolling, tags
-class Webserver(Runbook):
 
+class Webserver(Runbook):
     @rolling("1%", "5%", "40%", "80%", "100%", max_failing="10%")
     @tags("web", "apache")
     def run_upgrade(self):
@@ -102,3 +103,6 @@ class Webserver(Runbook):
             "{{ groups.trafficlb_nodes }}"
         )
 ```
+
+### Why is it called Decibel?
+Well, see, I tried to name it DSLible, because the goal was to create a more DSL-like language to use for Ansible. But DSLible is very hard to say, and the most important thing about project names is how easy you can fit it into a workplace discussion. Decibel sounded close enough, and also happens to lay the ground for a really cheeky slogan.
