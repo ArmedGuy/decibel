@@ -24,7 +24,7 @@ class Runnable():
         self.run_after = set()
 
     def __repr__(self):
-        return f"<Runnable '{self.method.__qualname__}'>"
+        return f"<Runnable '{self.name}'>"
 
     def __enter__(self):
         global _global_current_runnable
@@ -59,7 +59,7 @@ class Runnable():
         out = []
         for i, t in enumerate(self.tasks, start=1):
             tyaml = t._yaml()
-            tyaml["name"] = f"[{self.method.__qualname__}]::step{i} - {t.action}"
+            tyaml["name"] = f"[{self.name}]::step{i} - {t.action}"
             if self.vars:
                 tyaml["vars"] = dict(
                     self.vars, 
@@ -68,6 +68,10 @@ class Runnable():
             tyaml = dict(self.task_settings, **tyaml)
             out.append(tyaml)
         return out
+
+    @property
+    def name(self):
+        return self.method.__qualname__
 
 class RunbookVars():
     def __init__(self, runvars):
@@ -257,6 +261,8 @@ class Decibel():
             current_runs = []
             
             for r in runs:
+                if not r.tasks:
+                    continue
                 if current_hctx is None:
                     current_hctx = r.host_context
                 if r.host_context != current_hctx:
@@ -270,7 +276,10 @@ class Decibel():
         else:
             # Dump each Runnable separately.
             for r in runs:
+                if not r.tasks:
+                    continue
                 out.append(r.host_context.get_yaml([r]))
+        dag.get_dot()
         print(yaml.dump(out))
 
 
@@ -347,3 +356,9 @@ class RunnableDAG():
         if len(out) == len(self.graph):
             return out
         raise ValueError("Graph is not acyclic")
+
+    def get_dot(self):
+        print("digraph dag {")
+        for u in self.graph:
+            print(f"  \"{u.name}\" -> {{\"" + "\" \"".join(v.name for v in self.graph[u]) + "\"};")
+        print("}")

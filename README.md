@@ -63,13 +63,13 @@ Ansible strives to have configuration be idempotent, and most modules are indeed
 Decibel will be default warn you of such cases, and provide helper functions to easily make your configurations desired-state based.
 
 ```python
-from decibel.ansible import command, stat, 
+from decibel.ansible import command, stat
 from decibel.dsl import wants
 class Database(Runbook):
     def run_import(self):
         wants(
             stat(path="/tmp/mysql-import.log").stat.exists,
-            command("mysql -e 'SELECT * FROM db').ok
+            command("mysql -e 'SELECT * FROM db'").ok
         ).from(
             command("mysql-import file.sql")
         )

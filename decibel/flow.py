@@ -1,6 +1,6 @@
 from functools import wraps
-from src import Runnable, Runbook
-import src as decibel
+from decibel import Runnable, Runbook
+import decibel
 
 def run(f):
     return Runnable(f)
@@ -12,18 +12,18 @@ def as_runnable(f):
     return f
 
 
-def before(before_function):
+def before(*before_function):
     def inner(f):
         f = as_runnable(f)
-        f.run_before.add(before_function)
+        f.run_before = f.run_before | set(before_function)
         return f
     return inner
 
 
-def after(after_function):
+def after(*after_function):
     def inner(f):
         f = as_runnable(f)
-        f.run_after.add(after_function)
+        f.run_after = f.run_after | set(after_function)
         return f
     return inner
 

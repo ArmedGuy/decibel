@@ -1,4 +1,4 @@
-import src as decibel
+import decibel
 
 _variable_id = 1
 
@@ -33,13 +33,13 @@ class Task():
         self.args = []
         self.kwargs = {}
         self.settings = {
-            "register": self.variable_name
+            "register": self.variable_name,
+            "tags": [decibel._global_current_runnable.method.__qualname__]
         }
 
     def set_args(self, *args, **kwargs):
         self.args = args
         self.kwargs = kwargs
-        print(f"Registered task {self}")
         return self
 
     def with_settings(self, **kwargs):

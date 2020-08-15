@@ -1,2 +1,5 @@
 __pycache__/
 common/
+dist/
+pydecibel.egg-info/
+build/
