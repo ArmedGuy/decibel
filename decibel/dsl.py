@@ -4,13 +4,13 @@ class DesiredState():
         self.predicates = predicates
         self.statement = None
     
-    def from(self, statement):
+    def by(self, statement):
         self.statement = statement
-        self.statement.when([str(pred) for pred in self.predicates])
+        self.statement.when(" or ".join([is_not(str(pred)) for pred in self.predicates]))
 
 
 def wants(*predicates):
     return DesiredState(predicates)
 
-def not(predicate):
+def is_not(predicate):
     return f"not ({predicate})"

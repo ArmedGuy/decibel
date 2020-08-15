@@ -59,14 +59,14 @@ class Runnable():
         out = []
         for i, t in enumerate(self.tasks, start=1):
             tyaml = t._yaml()
-            tyaml["name"] = f"[{self.name}]::step{i} - {t.action}"
+            tyaml["name"] = f"{str(t)}"
             tyaml = dict(self.task_settings, **tyaml)
             out.append(tyaml)
         return out
 
     @property
     def name(self):
-        return self.method.__qualname__
+        return f"{self.method.__module__}.{self.method.__qualname__}"
 
 class RunbookVars():
     def __init__(self, runvars):
@@ -191,23 +191,23 @@ class HostContext():
         global _global_current_host_context
         _global_current_host_context = self._old_context
 
-    def get_yaml(self, runnables):
+    def get_yaml(self, runnable):
         out = dict({
             "hosts": self.hosts,
         }, **self.settings)
         tasks = []
         settings = {}
         runnable_vars = {}
-        for runnable in runnables:
-            tasks.extend(runnable._yaml())
-            settings = dict(settings, **runnable.hctx_settings)
-            runnable_vars = dict(runnable_vars, **runnable.vars)
+        tasks.extend(runnable._yaml())
+        settings = dict(settings, **runnable.hctx_settings)
+        runnable_vars = dict(runnable_vars, **runnable.vars)
         if self.vars:
             out["vars"] = {
                 "decibel_vars": self.vars
             }
         out["vars"] = dict(out.get("vars", {}), **runnable_vars)
         out["tasks"] = tasks
+        out["name"] = runnable.name
         out = dict(settings, **out)
         return out
 
@@ -251,32 +251,11 @@ class Decibel():
         # of Runnables.
         runs = dag.topological_sort()
         out = []
-        if self.settings['merge_runnables']:
-            # Go through each Runnable and collapse segments that contain the same Host Context
-            # This in practice tells us that Decibel orders only based on Runnable dependencies, not
-            # which Host Context the Runnable is bound to.
-            current_hctx = None
-            current_runs = []
-            
-            for r in runs:
-                if not r.tasks:
-                    continue
-                if current_hctx is None:
-                    current_hctx = r.host_context
-                if r.host_context != current_hctx:
-                    out.append(current_hctx.get_yaml(current_runs))
-                    current_runs = [r]
-                    current_hctx = r.host_context
-                else:
-                    current_runs.append(r)
-            if current_runs:
-                out.append(current_hctx.get_yaml(current_runs))
-        else:
-            # Dump each Runnable separately.
-            for r in runs:
-                if not r.tasks:
-                    continue
-                out.append(r.host_context.get_yaml([r]))
+        # Dump each Runnable separately.
+        for r in runs:
+            if not r.tasks:
+                continue
+            out.append(r.host_context.get_yaml(r))
         dag.get_dot()
         print(yaml.dump(out))
 

@@ -80,8 +80,19 @@ class Task():
             out["vars"] = self.vars
         return out
 
+    def _escape_formatting(self, val):
+        return str(val).replace("{", "[").replace("}", "]")
+    def _format_args(self):
+        if not self.args:
+            return ", ".join(
+                f"{key}={self._escape_formatting(value)}" for key, value in self.kwargs.items()
+            )
+        return ", ".join([self._escape_formatting(arg) for arg in self.args])
     def __repr__(self):
-        return f"<Task '{self.action}' {self.kwargs if not self.args else self.args}>"
+        return f"<Task '{self.action}' {self._format_args()}>"
+
+    def __str__(self):
+        return f"{self.action}({self._format_args()})"
 
     @property
     def var(self):
