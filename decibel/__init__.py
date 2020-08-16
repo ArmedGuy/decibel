@@ -4,6 +4,7 @@ _global_current_runbook = None
 _global_current_runnable = None
 
 import inspect
+import importlib
 from collections import deque
 import yaml
 
@@ -76,7 +77,7 @@ class RunbookVars():
         return self._vars.get(name, None)
 
 class Runbook():
-    def __init_subclass__(cls, /, **kwargs):
+    def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         # When Runbook has been fully declared, iterate over all functions
         # and patch any run_-prefixed functions as Runnables.
@@ -213,11 +214,26 @@ class HostContext():
 
 DEFAULT_SETTINGS = {
     'merge_runnables': False,
+    'optimizers': {
+        'decibel.optimizers.FactGatheringOptimizer': {}
+    }
 }
 class Decibel():
     def __init__(self, **kwargs):
         self.settings = dict(DEFAULT_SETTINGS, **kwargs)
         self.host_contexts = {}
+        self.optimizers = []
+        self._setup_optimizers()
+
+    def _import_class(self, fqcn):
+        module, _, class_name = fqcn.rpartition(".")
+        m = importlib.import_module(module)
+        return getattr(m, class_name)
+
+    def _setup_optimizers(self):
+        for opt, settings in self.settings.get("optimizers", {}).items():
+            entry = self._import_class(opt)
+            self.optimizers.append(entry(settings))
 
     def __enter__(self):
         global _global_current_instance
@@ -237,7 +253,22 @@ class Decibel():
         self.host_contexts[hosts] = hctx
         return hctx
 
+    def apply_sitemap(self, sitemap, **kwargs):
+        """
+        sitemap contains a mapping of hosts -> entry Runbook.
+        We will attempt to load each entry Runbook and apply it
+        on the hosts.
+        """
+        for hosts, runbook in sitemap.items():
+            entry = self._import_class(runbook)
+            with self.hosts(hosts, **kwargs):
+                entry()
+
     def run(self):
+        # start by applying optimizers on the instance itself
+        for opt in self.optimizers:
+            opt.optimize_run(self)
+
         dag = RunnableDAG()
         for hctx in self.host_contexts.values():
             for r in hctx.runnables:
@@ -247,6 +278,9 @@ class Decibel():
                 for a in r.run_after:
                     dag.add_edge(a, r) # a must run before r
         
+        # Now apply optimizers on the graph
+        for opt in self.optimizers:
+            opt.optimize_graph(dag)
         # Topological sort gives us a pretty ordered list that consists of our run order
         # of Runnables.
         runs = dag.topological_sort()

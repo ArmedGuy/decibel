@@ -82,12 +82,14 @@ class Task():
 
     def _escape_formatting(self, val):
         return str(val).replace("{", "[").replace("}", "]")
+
     def _format_args(self):
         if not self.args:
             return ", ".join(
                 f"{key}={self._escape_formatting(value)}" for key, value in self.kwargs.items()
             )
         return ", ".join([self._escape_formatting(arg) for arg in self.args])
+
     def __repr__(self):
         return f"<Task '{self.action}' {self._format_args()}>"
 
