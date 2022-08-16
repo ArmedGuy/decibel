@@ -1,13 +1,10 @@
-_global_current_instance = None
-_global_current_host_context = None
-_global_current_runbook = None
-_global_current_runnable = None
-
 import inspect
 import importlib
 from collections import deque
 import yaml
 import pathlib
+
+from . import context
 
 try:
     from collections import OrderedDict
@@ -29,20 +26,17 @@ class Runnable():
         return f"<Runnable '{self.name}'>"
 
     def __enter__(self):
-        global _global_current_runnable
-        self._old_current = _global_current_runnable
-        _global_current_runnable = self
+        self._old_current = context.get_current_runnable()
+        context.set_current_runnable(self)
 
     def __exit__(self, type, value, tb):
-        global _global_current_runnable
-        _global_current_runnable = self._old_current
+        context.set_current_runnable(self._old_current)
 
     def __call__(self, *args, **kwargs):
-        global _global_current_host_context, _global_current_instance
         # If host_context is already a tuple, we are asked
         # to override current global host context
         if isinstance(self.host_context, tuple):
-            with _global_current_instance.hosts(self.host_context[0], **self.host_context[1]) as hctx:
+            with context.get_current_instance().hosts(self.host_context[0], **self.host_context[1]) as hctx:
                 self._do_call(*args, **kwargs)
         else:
             self._do_call(*args, **kwargs)
@@ -52,8 +46,8 @@ class Runnable():
         # of Runbook (aka self variable), attach the Runnable
         # to the current host context
         if len(args) == 0 or not isinstance(args[0], Runbook):
-            _global_current_host_context.runnables.add(self)
-        self.host_context = _global_current_host_context
+            context.get_current_host_context().runnables.add(self)
+        self.host_context = context.get_current_host_context()
         with self:
             self.method(*args, **kwargs)
 
@@ -95,9 +89,8 @@ class Runbook():
 
 
     def __init__(self, **kwargs):
-        global _global_current_runbook, _global_current_host_context, _global_current_runnable
-        self._host_context = _global_current_host_context
-        self._parent_runbook = _global_current_runbook
+        self._host_context =context.get_current_host_context()
+        self._parent_runbook = context.get_current_runbook()
         self.vars = RunbookVars(kwargs)
         self.run_before = set()
         self.run_after = set()
@@ -107,8 +100,8 @@ class Runbook():
             self.run_after = set(self._parent_runbook.run_after)
         # If instanciated inside a Runnable, schedule to run
         # Runbook sometime after Runnable.
-        if _global_current_runnable is not None:
-            self.run_after.add(_global_current_runnable)
+        if context.get_current_runnable() is not None:
+            self.run_after.add(context.get_current_runnable())
         with self:
             self._setup()
     
@@ -116,19 +109,16 @@ class Runbook():
         pass
 
     def __enter__(self):
-        global _global_current_runbook
-        self._old_current = _global_current_runbook
-        _global_current_runbook = self
+        self._old_current = context.get_current_runbook()
+        context.set_current_runbook(self)
 
     def __exit__(self, type, value, tb):
-        global _global_current_runbook
-        _global_current_runbook = self._old_current
+       context.set_current_runbook(self._old_current)
 
     def _is_runnable(self, obj):
         return isinstance(obj, Runnable)
 
     def _setup(self):
-        global _global_current_instance
         self.setup()
         members = inspect.getmembers(self.__class__, predicate=self._is_runnable)
         # Iterate over all bound Runnables inside class and resolve soft-linked
@@ -165,7 +155,7 @@ class Runbook():
             else:
                 # host context is overridden for this Runnable
                 # execute Runnable within specified host context
-                with _global_current_instance.hosts(r.host_context[0], **r.host_context[1]) as hctx:
+                with context.get_current_instance().hosts(r.host_context[0], **r.host_context[1]) as hctx:
                     r.host_context = hctx
                     hctx.runnables.add(r)
                     getattr(self, member)(self)
@@ -184,14 +174,12 @@ class HostContext():
         return f"<HostContext '{self.hosts}' {self.settings}>"
     
     def __enter__(self):
-        global _global_current_host_context
-        self._old_context = _global_current_host_context
-        _global_current_host_context = self
+        self._old_context = context.get_current_host_context()
+        context.set_current_host_context(self)
         return self
 
     def __exit__(self, type, value, tb):
-        global _global_current_host_context
-        _global_current_host_context = self._old_context
+        context.set_current_host_context(self._old_context)
 
     def get_yaml(self, runnable):
         out = dict({
@@ -243,14 +231,12 @@ class Decibel():
             self.optimizers.append(entry(settings))
 
     def __enter__(self):
-        global _global_current_instance
-        self._old_instance = _global_current_instance
-        _global_current_instance = self
+        self._old_instance = context.get_current_instance()
+        context.set_current_instance(self)
         return self
 
     def __exit__(self, type, value, tb):
-        global _global_current_instance
-        _global_current_instance = self._old_instance
+        context.set_current_instance(self._old_instance)
 
     def hosts(self, hosts=None, **kwargs):
         if self.settings['localhost_only']:

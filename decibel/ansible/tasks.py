@@ -1,4 +1,5 @@
 import decibel
+import decibel.context as context
 
 _variable_id = 1
 
@@ -26,7 +27,7 @@ class TaskData():
 
 class Task():
     def __init__(self, action):
-        decibel._global_current_runnable.tasks.append(self)
+        context.get_current_runnable().tasks.append(self)
         self.action = action
         self.variable_name = _generate_variable()
         self.vars = {}
@@ -34,7 +35,7 @@ class Task():
         self.kwargs = {}
         self.settings = {
             "register": self.variable_name,
-            "tags": [decibel._global_current_runnable.method.__qualname__]
+            "tags": [context.get_current_runnable().method.__qualname__]
         }
 
     def set_args(self, *args, **kwargs):
