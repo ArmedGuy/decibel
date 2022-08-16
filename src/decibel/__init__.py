@@ -204,7 +204,7 @@ DEFAULT_SETTINGS = {
     'merge_runnables': False,
     'optimizers': {
         'decibel.optimizers.FactGatheringOptimizer': {}
-    }
+    },
     'localhost_only': True,
     'file_delivery_mode': 'bundle', # or bundle
     'fetch_base_url': None,
@@ -327,7 +327,7 @@ class RunnableDAG():
         return list(self.graph[node])
 
     def leaves(self):
-        return [key for key in graph if not self.graph[key]]
+        return [key for key in self.graph if not self.graph[key]]
 
     def independent_nodes(self):
         """
