@@ -7,6 +7,7 @@ import inspect
 import importlib
 from collections import deque
 import yaml
+import pathlib
 
 try:
     from collections import OrderedDict
@@ -218,11 +219,14 @@ DEFAULT_SETTINGS = {
         'decibel.optimizers.FactGatheringOptimizer': {}
     }
     'localhost_only': True,
+    'file_delivery_mode': 'bundle', # or bundle
+    'fetch_base_url': None,
 }
 
 
 class Decibel():
     def __init__(self, **kwargs):
+        self.base_path = pathlib.Path().resolve()
         self.settings = dict(DEFAULT_SETTINGS, **kwargs)
         self.host_contexts = {}
         self.optimizers = []
@@ -249,14 +253,14 @@ class Decibel():
         _global_current_instance = self._old_instance
 
     def hosts(self, hosts=None, **kwargs):
+        if self.settings['localhost_only']:
+            hosts = "localhost"
+            kwargs['connection'] = "local"
         hctx = self.host_contexts.get(hosts, None)
         if hctx is not None:
             return hctx
         if not self.settings['localhost_only'] and hosts is None:
             raise ValueError("localhost_only is False and hosts was empty")
-        elif self.settings['localhost_only']:
-            hosts = "localhost"
-            kwargs['connection'] = "local"
         hctx = HostContext(self, hosts, **kwargs)
         self.host_contexts[hosts] = hctx
         return hctx
