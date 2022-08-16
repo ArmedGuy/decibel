@@ -1,3 +1,4 @@
+from importlib.metadata import entry_points
 import setuptools
 
 with open("README.md", "r") as fh:
@@ -12,7 +13,13 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/ArmedGuy/decibel",
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(
+        where='src'
+    ),
+    package_dir={"": "src"},
+    entry_points= {
+        "console_scripts": ["decibel=decibel.cli:main"],
+    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

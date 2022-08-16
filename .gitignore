@@ -5,3 +5,4 @@ pydecibel.egg-info/
 build/
 .vscode/
 .vagrant/
+test.yaml

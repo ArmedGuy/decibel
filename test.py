@@ -8,4 +8,4 @@ with Decibel(file_delivery_mode="fetch", fetch_base_url="https://prod-decibel.eu
             region="eu-north",
             environment="production"
         )
-    ds.run()
+    config = ds

@@ -1,7 +1,6 @@
 import inspect
 import importlib
 from collections import deque
-import yaml
 import pathlib
 
 from . import context
@@ -288,8 +287,7 @@ class Decibel():
             if not r.tasks:
                 continue
             out.append(r.host_context.get_yaml(r))
-        dag.get_dot()
-        print(yaml.dump(out))
+        return out
 
 
 class RunnableDAG():
