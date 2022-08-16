@@ -116,12 +116,20 @@ class Task():
     def __getattr__(self, name):
         return TaskData(self.var + "." + name)
 
+def _task_factory_wrapper(action):
+    def task_factory(*args, **kwargs):
+        return Task(action).set_args(*args, **kwargs)
+    return task_factory
+
+
+def define(*args):
+    for arg in args:
+        yield _task_factory_wrapper(arg)
 
 # Magically return a Task factory for anything imported from this module.
 # This allows us to track any modules without having to do a hard sync between
 # ansible, external repositores and us, while still passing linting in editors.
 # Any instanciated Task will be bound to the current Runnable.
+
 def __getattr__(action):
-    def task_factory(*args, **kwargs):
-        return Task(action).set_args(*args, **kwargs)
-    return task_factory
+    return _task_factory_wrapper(action)
