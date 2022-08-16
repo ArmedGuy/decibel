@@ -2,7 +2,7 @@ from decibel import Decibel
 import common.setup_os
 
 with Decibel() as ds:
-    with ds.hosts("all", become=True, gather_facts=True):
+    with ds.hosts():
         common.setup_os.SetupOS(
             datacenter="dh2",
             region="eu-north",

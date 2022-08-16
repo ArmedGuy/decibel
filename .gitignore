@@ -4,3 +4,4 @@ dist/
 pydecibel.egg-info/
 build/
 .vscode/
+.vagrant/

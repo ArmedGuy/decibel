@@ -217,7 +217,10 @@ DEFAULT_SETTINGS = {
     'optimizers': {
         'decibel.optimizers.FactGatheringOptimizer': {}
     }
+    'localhost_only': True,
 }
+
+
 class Decibel():
     def __init__(self, **kwargs):
         self.settings = dict(DEFAULT_SETTINGS, **kwargs)
@@ -245,10 +248,15 @@ class Decibel():
         global _global_current_instance
         _global_current_instance = self._old_instance
 
-    def hosts(self, hosts, **kwargs):
+    def hosts(self, hosts=None, **kwargs):
         hctx = self.host_contexts.get(hosts, None)
         if hctx is not None:
             return hctx
+        if not self.settings['localhost_only'] and hosts is None:
+            raise ValueError("localhost_only is False and hosts was empty")
+        elif self.settings['localhost_only']:
+            hosts = "localhost"
+            kwargs['connection'] = "local"
         hctx = HostContext(self, hosts, **kwargs)
         self.host_contexts[hosts] = hctx
         return hctx
