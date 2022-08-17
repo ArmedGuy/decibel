@@ -2,6 +2,7 @@ import inspect
 import importlib
 from collections import deque
 import pathlib
+import os.path
 
 from . import context
 
@@ -20,6 +21,8 @@ class Runnable():
         self.task_settings = {}
         self.run_before = set()
         self.run_after = set()
+
+        self.runnable_path = os.path.dirname(inspect.getfile(method))
 
     def __repr__(self):
         return f"<Runnable '{self.name}'>"

@@ -16,9 +16,10 @@ def build(path):
     spec.loader.exec_module(mod)
     with mod.config as ds:
         res = ds.run()
-        new_file = Path(path).stem
-        with open(f"{new_file}.yaml", "w+") as f:
+        out_file = f"{Path(path).stem}.yaml"
+        with open(out_file, "w+") as f:
             f.write(yaml.dump(res))
+        print(f"Wrote Ansible file to {out_file}")
 
 
 def main():
