@@ -7,9 +7,11 @@ config = Decibel(
 )
 
 with config as ds:
-    with ds.hosts():
-        tests.common.setup_os.SetupOS(
-            datacenter="dh2",
-            region="eu-north",
-            environment="production"
-        )
+    with ds.hosts(become=True):
+        for env in ["production", "dev", "canary"]:
+            for dc in ["dh2", "dc3"]:
+                tests.common.setup_os.SetupOS(
+                    datacenter=dc,
+                    region="eu-north",
+                    environment=env
+                )

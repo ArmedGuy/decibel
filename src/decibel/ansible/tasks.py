@@ -26,7 +26,9 @@ class TaskData():
 
 class Task():
     def __init__(self, action):
-        context.get_current_runnable().tasks.append(self)
+        r = context.get_current_runnable()
+        if not r.tasks_initialized:
+            r.tasks.append(self)
         self.action = action
         self.variable_name = _generate_variable()
         self.vars = {}

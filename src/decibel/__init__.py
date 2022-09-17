@@ -14,9 +14,9 @@ except ImportError:
 class Runnable():
     def __init__(self, method):
         self.method = method
-        self.host_context = None
+        self.host_contexts = []
         self.tasks = []
-        self.vars = {}
+        self.tasks_initialized = False
         self.hctx_settings = {}
         self.task_settings = {}
         self.run_before = set()
@@ -37,21 +37,12 @@ class Runnable():
     def __call__(self, *args, **kwargs):
         # If host_context is already a tuple, we are asked
         # to override current global host context
-        if isinstance(self.host_context, tuple):
-            with context.get_current_instance().hosts(self.host_context[0], **self.host_context[1]) as hctx:
-                self._do_call(*args, **kwargs)
-        else:
-            self._do_call(*args, **kwargs)
-
-    def _do_call(self, *args, **kwargs):
-        # if call has no regular args or arg0 is not instance
-        # of Runbook (aka self variable), attach the Runnable
-        # to the current host context
-        if len(args) == 0 or not isinstance(args[0], Runbook):
-            context.get_current_host_context().runnables.add(self)
-        self.host_context = context.get_current_host_context()
+        hctx = context.get_current_host_context()
+        self.host_contexts.append(hctx)
+        hctx.runnables.add(self)
         with self:
             self.method(*args, **kwargs)
+            self.tasks_initialized = True
 
     def _yaml(self):
         out = []
@@ -65,6 +56,12 @@ class Runnable():
     @property
     def name(self):
         return f"{self.method.__module__}.{self.method.__qualname__}"
+
+    def __eq__(self, other):
+        return self.method == other.method
+
+    def __hash__(self):
+        return hash(self.method)
 
 class RunbookVars():
     def __init__(self, runvars):
@@ -91,9 +88,10 @@ class Runbook():
 
 
     def __init__(self, **kwargs):
-        self._host_context =context.get_current_host_context()
+        self._host_context = context.get_current_host_context().copy()
         self._parent_runbook = context.get_current_runbook()
         self.vars = RunbookVars(kwargs)
+        self._host_context.vars = kwargs
         self.run_before = set()
         self.run_after = set()
         # Inherit any set before/afters from current runbook
@@ -121,46 +119,32 @@ class Runbook():
         return isinstance(obj, Runnable)
 
     def _setup(self):
-        self.setup()
-        members = inspect.getmembers(self.__class__, predicate=self._is_runnable)
-        # Iterate over all bound Runnables inside class and resolve soft-linked
-        # dependencies. These exist because you cannot reference class.function
-        # when the class is being read.
-        # When all dependencies are resolved, instanciate the bound variant of the Runnable
-        # to collect all Tasks and child Runnables.
-        for member, r in members:
-            run_before = set()
-            for f in r.run_before:
-                if not isinstance(f, str):
-                    run_before.add(f)
-                    continue
-                run_before.add([m[1] for m in members if m[0] == f][0])
-            r.run_before = run_before | self.run_before
-            
-            run_after = set()
-            for f in r.run_after:
-                if not isinstance(f, str):
-                    run_after.add(f)
-                    continue
-                run_after.add([m[1] for m in members if m[0] == f][0])
-            r.run_after = run_after | self.run_after
+        with self._host_context:
+            self.setup()
 
-            # Add any variables from Runbook to Runnable, but
-            # make sure Runnable-local variables are preserved
-            r.vars = dict(self.vars._vars, **r.vars)
-            
-            # Check if host context is overridden for Runnable,
-            # if not add to current host context and collect children.
-            if not isinstance(r.host_context, tuple):
-                self._host_context.runnables.add(r)
-                getattr(self, member)(self)
-            else:
-                # host context is overridden for this Runnable
-                # execute Runnable within specified host context
-                with context.get_current_instance().hosts(r.host_context[0], **r.host_context[1]) as hctx:
-                    r.host_context = hctx
-                    hctx.runnables.add(r)
-                    getattr(self, member)(self)
+            members = inspect.getmembers(self.__class__, predicate=self._is_runnable)
+            # Iterate over all bound Runnables inside class and resolve soft-linked
+            # dependencies. These exist because you cannot reference class.function
+            # when the class is being read.
+            # When all dependencies are resolved, instanciate the bound variant of the Runnable
+            # to collect all Tasks and child Runnables.
+            for _, r in members:
+                run_before = set()
+                for f in r.run_before:
+                    if not isinstance(f, str):
+                        run_before.add(f)
+                        continue
+                    run_before.add([m[1] for m in members if m[0] == f][0])
+                r.run_before = run_before | self.run_before
+                
+                run_after = set()
+                for f in r.run_after:
+                    if not isinstance(f, str):
+                        run_after.add(f)
+                        continue
+                    run_after.add([m[1] for m in members if m[0] == f][0])
+                r.run_after = run_after | self.run_after
+                r(self)
 
 
 class HostContext():
@@ -183,30 +167,34 @@ class HostContext():
     def __exit__(self, type, value, tb):
         context.set_current_host_context(self._old_context)
 
+    def copy(self):
+        return context.get_current_instance().hosts(self.hosts, **self.settings)
+
     def get_yaml(self, runnable):
         out = dict({
             "hosts": self.hosts,
         }, **self.settings)
         tasks = []
         settings = {}
-        runnable_vars = {}
         tasks.extend(runnable._yaml())
         settings = dict(settings, **runnable.hctx_settings)
-        runnable_vars = dict(runnable_vars, **runnable.vars)
-        if self.vars:
-            out["vars"] = {
-                "decibel_vars": self.vars
-            }
-        out["vars"] = dict(out.get("vars", {}), **runnable_vars)
+        out["vars"] = self.vars
         out["tasks"] = tasks
         out["name"] = runnable.name
         out = dict(settings, **out)
         return out
 
+    def __eq__(self, other):
+        return isinstance(other, HostContext) and self.instance == other.instance and self.hosts == other.hosts and self.settings == other.settings and self.vars == other.vars and self.runnables == other.runnables
+    
+    def __hash__(self):
+        return hash((self.instance, self.hosts, frozenset(self.settings.items()), frozenset(self.vars.items()), frozenset(self.runnables)))
+
 DEFAULT_SETTINGS = {
     'merge_runnables': False,
     'optimizers': {
-        'decibel.optimizers.FactGatheringOptimizer': {}
+        'decibel.optimizers.FactGatheringOptimizer': {},
+        'decibel.optimizers.MergeIdenticalHostContextsOptimizer': {},
     },
     'localhost_only': True,
     'file_delivery_mode': 'bundle', # or bundle
@@ -218,7 +206,7 @@ class Decibel():
     def __init__(self, **kwargs):
         self.base_path = pathlib.Path().resolve()
         self.settings = dict(DEFAULT_SETTINGS, **kwargs)
-        self.host_contexts = {}
+        self.host_contexts = []
         self.optimizers = []
         self._setup_optimizers()
 
@@ -244,33 +232,21 @@ class Decibel():
         if self.settings['localhost_only']:
             hosts = "localhost"
             kwargs['connection'] = "local"
-        hctx = self.host_contexts.get(hosts, None)
-        if hctx is not None:
-            return hctx
+
         if not self.settings['localhost_only'] and hosts is None:
             raise ValueError("localhost_only is False and hosts was empty")
         hctx = HostContext(self, hosts, **kwargs)
-        self.host_contexts[hosts] = hctx
+        self.host_contexts.append(hctx)
         return hctx
 
-    def apply_sitemap(self, sitemap, **kwargs):
-        """
-        sitemap contains a mapping of hosts -> entry Runbook.
-        We will attempt to load each entry Runbook and apply it
-        on the hosts.
-        """
-        for hosts, runbook in sitemap.items():
-            entry = self._import_class(runbook)
-            with self.hosts(hosts, **kwargs):
-                entry()
-
-    def run(self):
+    def _build_dag(self):
         # start by applying optimizers on the instance itself
         for opt in self.optimizers:
+            print(f"Optimizing run with {opt.name}")
             opt.optimize_run(self)
 
         dag = RunnableDAG()
-        for hctx in self.host_contexts.values():
+        for hctx in self.host_contexts:
             for r in hctx.runnables:
                 dag.add_node(r)
                 for b in r.run_before:
@@ -280,7 +256,13 @@ class Decibel():
         
         # Now apply optimizers on the graph
         for opt in self.optimizers:
+            print(f"Optimizing graph with {opt.name}")
             opt.optimize_graph(dag)
+        
+        return dag
+
+    def run(self):
+        dag = self._build_dag()
         # Topological sort gives us a pretty ordered list that consists of our run order
         # of Runnables.
         runs = dag.topological_sort()
@@ -289,7 +271,8 @@ class Decibel():
         for r in runs:
             if not r.tasks:
                 continue
-            out.append(r.host_context.get_yaml(r))
+            for hctx in r.host_contexts:
+                out.append(hctx.get_yaml(r))
         return out
 
 

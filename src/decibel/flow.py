@@ -19,27 +19,10 @@ def before(*before_function):
         return f
     return inner
 
-
 def after(*after_function):
     def inner(f):
         f = as_runnable(f)
         f.run_after = f.run_after | set(after_function)
-        return f
-    return inner
-
-
-def hosts(hosts, **kwargs):
-    def inner(f):
-        f = as_runnable(f)
-        f.host_context = (hosts, kwargs)
-        return f
-    return inner
-
-def rolling(*levels, fail_percentage=10):
-    def inner(f):
-        f = as_runnable(f)
-        f.hctx_settings["serial"] = list(levels)
-        f.hctx_settings["max_fail_percentage"] = fail_percentage
         return f
     return inner
 
