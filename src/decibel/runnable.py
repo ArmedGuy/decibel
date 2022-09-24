@@ -6,9 +6,8 @@ from . import context
 class Runnable():
     def __init__(self, method):
         self.method = method
-        self.host_contexts = []
         self.tasks = []
-        self.tasks_initialized = False
+        self.host_contexts = []
         self.hctx_settings = {}
         self.task_settings = {}
         self.run_before = set()
@@ -32,19 +31,9 @@ class Runnable():
         hctx.runnables.add(self)
         with self:
             self.method(*args, **kwargs)
-            self.tasks_initialized = True
         
         if len(context.get_current_predicates()):
             raise AttributeError("Not all predicates were deregistered")
-
-    def _yaml(self):
-        out = []
-        for i, t in enumerate(self.tasks, start=1):
-            tyaml = t._yaml()
-            tyaml["name"] = f"{str(t)}"
-            tyaml = dict(self.task_settings, **tyaml)
-            out.append(tyaml)
-        return out
 
     @property
     def name(self):

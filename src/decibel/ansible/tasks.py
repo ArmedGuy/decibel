@@ -12,16 +12,17 @@ def _generate_variable():
 class Task():
     def __init__(self, action):
         r = context.get_current_runnable()
-        if not r.tasks_initialized:
-            r.tasks.append(self)
+        r.tasks.append(self)
         self.action = action
+        self.host_context = context.get_current_host_context()
         self.variable_name = _generate_variable()
+        self.runnable = r
         self.vars = {}
         self.args = []
         self.kwargs = {}
         self.settings = {
             "register": self.variable_name,
-            "tags": [context.get_current_runnable().method.__qualname__]
+            "tags": [r.method.__qualname__]
         }
         predicates = context.get_current_predicates()
         if predicates:
@@ -61,7 +62,7 @@ class Task():
         self.settings["delegate_to"] = "{{ item }}"
         self.settings["loop"] = target
 
-    def _yaml(self):
+    def get_yaml(self):
         # If regular arg is used, discard any kwargs. If none exist use kwargs instead.
         task_data = self.args[0] if len(self.args) != 0 else self.kwargs
         out = dict({}, **self.settings)

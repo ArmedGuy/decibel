@@ -41,16 +41,14 @@ class HostContext():
         }, **self.settings)
         tasks = []
         settings = {}
-        tasks.extend(runnable._yaml())
+        for t in [t for t in runnable.tasks if t.host_context == self]:
+            tyaml = t.get_yaml()
+            tyaml["name"] = f"{str(t)}"
+            tyaml = dict(runnable.task_settings, **tyaml)
+            tasks.append(tyaml)
         settings = dict(settings, **runnable.hctx_settings)
         out["vars"] = self.vars
         out["tasks"] = tasks
         out["name"] = runnable.name
         out = dict(settings, **out)
         return out
-
-    def __eq__(self, other):
-        return isinstance(other, HostContext) and self.instance == other.instance and self.hosts == other.hosts and self.settings == other.settings and self.vars == other.vars and self.runnables == other.runnables
-    
-    def __hash__(self):
-        return hash((self.instance, self.hosts, frozenset(self.settings.items()), frozenset(self.vars.items()), frozenset(self.runnables)))
