@@ -1,4 +1,5 @@
 import decibel.context as context
+from decibel.dsl import Variable, Predicate
 
 _variable_id = 1
 
@@ -7,22 +8,6 @@ def _generate_variable():
     name = f"runvar{_variable_id:04}"
     _variable_id += 1
     return name
-
-class TaskData():
-    def __init__(self, parent):
-        self._parent = parent
-
-    def __getattr__(self, name):
-        if not name.startswith("_"):
-            return TaskData(self._parent + "." + name)
-        else:
-            return super().__getattr__(name)
-
-    def __str__(self):
-        return self._parent
-
-    def __repr__(self):
-        return self.__str__()
 
 class Task():
     def __init__(self, action):
@@ -38,6 +23,9 @@ class Task():
             "register": self.variable_name,
             "tags": [context.get_current_runnable().method.__qualname__]
         }
+        predicates = context.get_current_predicates()
+        if predicates:
+            self.when(list(predicates))
 
     def set_args(self, *args, **kwargs):
         self.args = args
@@ -100,7 +88,7 @@ class Task():
 
     @property
     def var(self):
-        return self.variable_name
+        return Variable(self.variable_name)
 
     @property
     def is_failed(self):
@@ -115,7 +103,7 @@ class Task():
         return f"{self.var} is skipped"
 
     def __getattr__(self, name):
-        return TaskData(self.var + "." + name)
+        return self.var + name
 
 def _task_factory_wrapper(action):
     def task_factory(*args, **kwargs):

@@ -1,7 +1,7 @@
 from decibel import Runbook
 from decibel.ansible.tasks import define
 from decibel.flow import after, before, run, tags
-from decibel.dsl import wants
+from decibel.dsl import wants, default
 from decibel.tasks import get_file
 
 from tests.common.roles.service_agents import ConsulAgent, VaultAgent, ConsulTemplate
@@ -34,7 +34,7 @@ def setup_user():
     meta("clear_host_errors")
     set_fact(
         ansible_user="siteops"
-    ).when(f"{ping.var}.failed | d({ping.var}.unreachable) | d(false)")
+    ).when(ping.failed() | ping.unreachable() | default(False))
 
 class SetupOS(Runbook):
     def setup(self):
@@ -103,7 +103,7 @@ class SetupOS(Runbook):
             dest="/localhome/siteops",
             owner="siteops",
             group="siteops"
-        ).when(usr.changed)
+        ).when(usr.changed())
         get_file(
             src="files/siteops_sudoers",
             dest="/etc/sudoers.d/siteops",

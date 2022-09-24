@@ -15,7 +15,12 @@ class ConsulAgent(Runbook):
             name="consul",
             state="installed"
         )
-        command(f"consul --datacenter={self.vars.datacenter}")
+
+        with apt(
+            name="consul",
+            state="installed"
+        ).changed():
+            command("consul --datacenter={{datacenter}}")
 
 class VaultAgent(Runbook):
     def run_do(self):
