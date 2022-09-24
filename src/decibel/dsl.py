@@ -84,6 +84,9 @@ class Variable:
     def __call__(self, *args, **kwargs):
         return Predicate(self)
 
+    def value(self):
+        return self._actual_value
+
     def __getattr__(self, name):
         if not name.startswith("_"):
             return self + name

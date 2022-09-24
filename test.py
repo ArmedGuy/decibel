@@ -2,7 +2,7 @@ from decibel import Decibel
 import tests.common.setup_os
 
 config = Decibel(
-    file_delivery_mode="fetch",
+    file_delivery_mode="repo",
     fetch_base_url="https://prod-decibel.eu-north-1.s3.amazonaws.com"
 )
 

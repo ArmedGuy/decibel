@@ -40,8 +40,6 @@ def hctx_hash(self):
     return hash((self.instance, self.hosts, frozenset(self.settings.items()), frozenset(self.vars.items()), frozenset(self.runnables)))
 
 class MergeIdenticalHostContextsOptimizer(Optimizer):
-    def compare_host_contexts(self, first, other):
-        return first.instance == other.instance and first.hosts == other.hosts and first.settings == other.settings and first.vars == other.vars and first.runnables == other.runnables
     def optimize_run(self, instance):
         old_eq = HostContext.__eq__
         old_hash = HostContext.__hash__
