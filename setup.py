@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pydecibel",
-    version="0.0.5",
+    version="0.1.0",
     author="Johan Jatko",
     author_email="armedguy@ludd.ltu.se",
     description="Turn your infrastructure up to eleven!",

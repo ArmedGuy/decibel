@@ -23,13 +23,12 @@ class HAProxy(Runbook):
         )
 
     @after("run_install")
-    @notify("reload_service")
     def run_configure(self):
         template(
             src="files/haproxy.cfg.j2",
             dest="/etc/haproxy/haproxy.cfg"
         )
-        if self.vars.datacenter == "dc1":
+        if self.vars.datacenter.value() == "dc1":
             command("program --datacenter {{ datacenter }}")
 
     def reload_service(self):
@@ -64,43 +63,15 @@ Decibel will be default warn you of such cases, and provide helper functions to 
 
 ```python
 from decibel.ansible import command, stat
-from decibel.dsl import wants
+from decibel.dsl import gets
 
 class Database(Runbook):
     def run_import(self):
-        wants(
+        gets(
             stat(path="/tmp/mysql-import.log").stat.exists,
             command("mysql -e 'SELECT * FROM db'").ok
-        ).from(
+        ).via(
             command("mysql-import file.sql")
-        )
-```
-
-#### Lots of plumbing under the hood
-Decibel handles registration and firing of handlers, variable registration and variable scope, 
-task tagging. It also provides a helpful syntax for many common operations such as run once, task delegation, rolling updates, and more. 
-
-```python
-from decibel.ansible import command, apt
-from decibel.flow import rolling, tags
-
-class Webserver(Runbook):
-    @rolling("1%", "5%", "40%", "80%", "100%", max_failing="10%")
-    @tags("web", "apache")
-    def run_upgrade(self):
-        command(
-            "/usr/bin/disable_host {{inventory_hostname}}"
-        ).run_once().on(
-            "{{ groups.trafficlb_nodes }}"
-        )
-        apt(
-            name="apache2",
-            state="latest"
-        )
-        command(
-            "/usr/bin/enable_host {{inventory_hostname}}"
-        ).run_once().on(
-            "{{ groups.trafficlb_nodes }}"
         )
 ```
 

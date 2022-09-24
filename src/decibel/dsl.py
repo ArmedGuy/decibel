@@ -6,7 +6,7 @@ class DesiredState():
         self.predicates = predicates
         self.statement = None
     
-    def by(self, statement):
+    def via(self, statement):
         self.statement = statement
         self.statement.when(" or ".join([is_not(str(pred)) for pred in self.predicates]))
 
@@ -97,7 +97,7 @@ class Variable:
 
 
 
-def wants(*predicates):
+def gets(*predicates):
     return DesiredState(predicates)
 
 def is_not(predicate):
